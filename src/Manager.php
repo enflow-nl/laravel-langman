@@ -51,7 +51,7 @@ class Manager
      *
      * @return array
      */
-    public function files()
+    public function files($fileNames = [])
     {
         $files = Collection::make($this->disk->allFiles($this->path))->filter(function ($file) {
             return $this->disk->extension($file) == 'php';
@@ -82,6 +82,12 @@ class Manager
         // neglect all vendor files.
         if (! Str::contains($this->path, 'vendor')) {
             $filesByFile = $this->neglectVendorFiles($filesByFile);
+        }
+        
+        $fileNames = (array) $fileNames;
+
+        if (! empty($fileNames)) {
+            return array_intersect_key($filesByFile, array_combine($fileNames, $fileNames));
         }
 
         return $filesByFile;
@@ -387,5 +393,31 @@ class Manager
         }
 
         return $missing;
+    }
+
+    /**
+     * Get all language files content as an array grouped by their filename
+     * and their key.
+     *
+     * @return array
+     * @throws \Illuminate\Contracts\Filesystem\FileNotFoundException
+     */
+    public function getFilesContentGroupedByFilenameAndKey($selectedFiles = [])
+    {
+        $files = $this->files((array) $selectedFiles);
+
+        $allLangs = [];
+        $filesContent = [];
+
+        foreach ($files as $langFileName => $langFilePath) {
+            foreach ($langFilePath as $languageKey => $file) {
+                foreach ($filesContent[$languageKey] = Arr::dot($this->getFileContent($file)) as $key => $value) {
+                    $allLangs[$langFileName][$key]['key'] = $key;
+                    $allLangs[$langFileName][$key][$languageKey] = $value;
+                }
+            }
+        }
+
+        return $allLangs;
     }
 }
